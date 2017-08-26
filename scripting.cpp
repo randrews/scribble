@@ -7,6 +7,7 @@
 
 SCM add_line(SCM x1, SCM y1, SCM x2, SCM y2, SCM rs, SCM gs, SCM bs);
 SCM del_line(SCM idx);
+SCM edit(SCM idx, SCM name, SCM new_value);
 
 void* register_functions(void*);
 int guile_thread(void*);
@@ -22,6 +23,7 @@ void scripting_init(int argc, char **argv) {
 void* register_functions(void *_data) {
     scm_c_define_gsubr("add-line", 4, 3, 0, (scm_t_subr) &add_line);
     scm_c_define_gsubr("del-line", 1, 0, 0, (scm_t_subr) &del_line);
+    scm_c_define_gsubr("edit", 3, 0, 0, (scm_t_subr) &edit);
 }
 
 int guile_thread(void *_data) {
@@ -48,5 +50,15 @@ SCM add_line(SCM x1, SCM y1, SCM x2, SCM y2, SCM rs, SCM gs, SCM bs) {
 
 SCM del_line(SCM idx) {
     lines.del(scm_to_int(idx));
+    return SCM_UNSPECIFIED;
+}
+
+SCM edit(SCM idx, SCM name_s, SCM new_value) {
+    Primitive *p = (Primitive*) lines.edit(scm_to_int(idx));
+    if(p) {
+	char name[64]; memset(name, 0, 64);
+	scm_to_locale_stringbuf(name_s, name, 64);
+	p->change(name, scm_to_int(new_value));
+    }
     return SCM_UNSPECIFIED;
 }

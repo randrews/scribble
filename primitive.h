@@ -3,7 +3,8 @@
 
 class Primitive {
  public:
-    virtual void draw(SDL_Renderer*) const;
+    virtual void draw(SDL_Renderer *ren) const;
+    virtual void change(const char *name, int new_value);
 };
 
 class Line : public Primitive {
@@ -12,6 +13,7 @@ class Line : public Primitive {
     int r, g, b;
 
     virtual void draw(SDL_Renderer*) const;
+    virtual void change(const char *name, int new_value);
 };
 
 class Sprite : public Primitive {
