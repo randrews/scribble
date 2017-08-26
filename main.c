@@ -10,15 +10,24 @@ void redraw(SDL_Renderer*);
 void* register_functions(void*);
 int guile_thread(void*);
 
+SCM draw_line(SCM x1, SCM y1, SCM x2, SCM y2, SCM rs, SCM gs, SCM bs);
+
 struct Args { int argc; char **argv; };
 
-int d=1, y=0;
+Uint32 lastframe = 0;
+int d = 1, y = 0;
 SDL_Texture *tex;
 
-int main(int argc, char **argv) {
-    scm_with_guile(&register_functions, 0);
+struct Line { int x1, y1, x2, y2, r, g, b; };
+SDL_mutex *lines_mutex;
+int lines_max = 0;
+struct Line *lines;
 
+int main(int argc, char **argv) {
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER); handleError();
+
+    scm_with_guile(&register_functions, 0);
+    lines_mutex = SDL_CreateMutex();
 
     SDL_Window *win = SDL_CreateWindow("Scribble",
                                        100, 100,
@@ -29,20 +38,22 @@ int main(int argc, char **argv) {
     SDL_Surface *bmp = SDL_LoadBMP("pepe.bmp");
     tex = SDL_CreateTextureFromSurface(ren, bmp);
 
+    lines = malloc(sizeof(struct Line) * 256);
+
     struct Args args = { argc, argv };
     SDL_CreateThread(&guile_thread, "guile", &args);
 
     SDL_Event event;
     SDL_TimerID timer = SDL_AddTimer(30, timerCallback, 0);
-    int exit = 0;
 
     while(1) {
+        int codes = 0;
+
         handleError();
-
         SDL_WaitEvent(&event);
-
-        do { exit |= handleEvent(&event, ren); } while(SDL_PollEvent(&event));
-        if(exit) break;
+        do { codes |= handleEvent(&event, ren); } while(SDL_PollEvent(&event));
+        if(codes & 2) redraw(ren);
+        if(codes & 1) break;
     }
 
     SDL_FreeSurface(bmp);
@@ -51,13 +62,30 @@ int main(int argc, char **argv) {
 }
 
 void* register_functions(void *_data) {
+    scm_c_define_gsubr("draw-line", 4, 3, 0, &draw_line);
+}
+
+SCM draw_line(SCM x1, SCM y1, SCM x2, SCM y2, SCM rs, SCM gs, SCM bs) {
+    int r = scm_is_integer(rs) ? scm_to_int(rs) : 255;
+    int g = scm_is_integer(gs) ? scm_to_int(gs) : 255;
+    int b = scm_is_integer(bs) ? scm_to_int(bs) : 255;
+
+    if(!SDL_LockMutex(lines_mutex)) {
+        lines[lines_max++] = (struct Line) { scm_to_int(x1),
+                               scm_to_int(y1),
+                               scm_to_int(x2),
+                               scm_to_int(y2),
+                               r, g, b };
+        SDL_UnlockMutex(lines_mutex);
+    }
+
+    return scm_from_int(lines_max-1);
 }
 
 int guile_thread(void *_data) {
     scm_init_guile();
     struct Args *args = (struct Args*)(_data);
     scm_shell(args->argc, args->argv);
-    /* scm_shell(0, 0); */
 }
 
 int handleEvent(SDL_Event *event, SDL_Renderer *ren) {
@@ -66,8 +94,9 @@ int handleEvent(SDL_Event *event, SDL_Renderer *ren) {
         if(event->window.event == SDL_WINDOWEVENT_CLOSE) return 1;
         break;
     case SDL_QUIT: return 1; break;
-    case SDL_USEREVENT: redraw(ren);
+    case SDL_USEREVENT: return 2;
     }
+
     return 0;
 }
 
@@ -80,9 +109,14 @@ void redraw(SDL_Renderer *ren) {
     SDL_RenderDrawLine(ren, 0, y, 639, 479-y);
     SDL_RenderDrawLine(ren, 0, 479-y, 639, y);
 
-    if(y == 0 && d < 0) d = 1;
-    if(y == 479 && d > 0) d = -1;
-    y += d;
+    if(!SDL_LockMutex(lines_mutex)) {
+        for(int n = 0; n < lines_max; n++) {
+            struct Line *line = lines + n;
+            SDL_SetRenderDrawColor(ren, line->r, line->g, line->b, SDL_ALPHA_OPAQUE);
+            SDL_RenderDrawLine(ren, line->x1, line->y1, line->x2, line->y2);
+        }
+        SDL_UnlockMutex(lines_mutex);
+    }
 
     SDL_RenderPresent(ren);
 }
@@ -96,6 +130,10 @@ void handleError() {
 }
 
 Uint32 timerCallback(Uint32 interval, void *param) {
+    if(y < 1 && d < 0) d = 1;
+    if(y > 478 && d > 0) d = -1;
+    y += 10*d;
+
     SDL_Event event;
     event.type = SDL_USEREVENT;
     SDL_PushEvent(&event);
