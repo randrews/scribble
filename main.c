@@ -1,15 +1,23 @@
 #include <stdlib.h>
 #include <SDL2/SDL.h>
+#include <libguile.h>
 
 void handleError();
 int handleEvent(SDL_Event*, SDL_Renderer*);
 Uint32 timerCallback(Uint32 interval, void *param);
 void redraw(SDL_Renderer*);
 
+void* register_functions(void*);
+int guile_thread(void*);
+
+struct Args { int argc; char **argv; };
+
 int d=1, y=0;
 SDL_Texture *tex;
 
 int main(int argc, char **argv) {
+    scm_with_guile(&register_functions, 0);
+
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER); handleError();
 
     SDL_Window *win = SDL_CreateWindow("Scribble",
@@ -17,13 +25,14 @@ int main(int argc, char **argv) {
                                        640, 480,
                                        SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
 
-    SDL_Renderer *ren = SDL_CreateRenderer(win, -1,
-                                           SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+    SDL_Renderer *ren = SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
     SDL_Surface *bmp = SDL_LoadBMP("pepe.bmp");
     tex = SDL_CreateTextureFromSurface(ren, bmp);
 
-    SDL_Event event;
+    struct Args args = { argc, argv };
+    SDL_CreateThread(&guile_thread, "guile", &args);
 
+    SDL_Event event;
     SDL_TimerID timer = SDL_AddTimer(30, timerCallback, 0);
     int exit = 0;
 
@@ -39,6 +48,16 @@ int main(int argc, char **argv) {
     SDL_FreeSurface(bmp);
 	SDL_Quit();
 	return 0;
+}
+
+void* register_functions(void *_data) {
+}
+
+int guile_thread(void *_data) {
+    scm_init_guile();
+    struct Args *args = (struct Args*)(_data);
+    scm_shell(args->argc, args->argv);
+    /* scm_shell(0, 0); */
 }
 
 int handleEvent(SDL_Event *event, SDL_Renderer *ren) {
