@@ -2,6 +2,7 @@
 #include <libguile.h>
 #include "scripting.h"
 #include "array.h"
+#include "primitive.h"
 #include "main.h"
 
 SCM add_line(SCM x1, SCM y1, SCM x2, SCM y2, SCM rs, SCM gs, SCM bs);
@@ -32,18 +33,16 @@ int guile_thread(void *_data) {
 /**************************************************/
 
 SCM add_line(SCM x1, SCM y1, SCM x2, SCM y2, SCM rs, SCM gs, SCM bs) {
-    int r = scm_is_integer(rs) ? scm_to_int(rs) : 255;
-    int g = scm_is_integer(gs) ? scm_to_int(gs) : 255;
-    int b = scm_is_integer(bs) ? scm_to_int(bs) : 255;
+    Line *line = new Line();
+    line->x1 = scm_to_int(x1);
+    line->y1 = scm_to_int(y1);
+    line->x2 = scm_to_int(x2);
+    line->y2 = scm_to_int(y2);
+    line->r = scm_is_integer(rs) ? scm_to_int(rs) : 255;
+    line->g = scm_is_integer(gs) ? scm_to_int(gs) : 255;
+    line->b = scm_is_integer(bs) ? scm_to_int(bs) : 255;
 
-    Primitive p = (Primitive) {
-        LINE,
-        scm_to_int(x1),
-        scm_to_int(y1),
-        scm_to_int(x2),
-        scm_to_int(y2),
-        r, g, b };
-    int idx = lines.add(p);
+    int idx = lines.add(line);
     return scm_from_int(idx);
 }
 

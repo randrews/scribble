@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <SDL2/SDL.h>
 #include "array.h"
+#include "primitive.h"
 #include "scripting.h"
 #include "main.h"
 
@@ -12,7 +13,7 @@ void redraw(SDL_Renderer*);
 int d = 1, y = 0;
 SDL_Texture *tex;
 
-Array<Primitive> lines;
+Array lines;
 
 int main(int argc, char **argv) {
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER); handleError();
@@ -68,14 +69,9 @@ void redraw(SDL_Renderer *ren) {
     SDL_RenderDrawLine(ren, 0, 479-y, 639, y);
 
     lines.lock();
-    const Primitive **prims = lines.contents();
-    int max = lines.max();
-    for(int n = 0; n <= max; n++) {
-        if(prims[n]) {
-            const Primitive *p = prims[n];
-            SDL_SetRenderDrawColor(ren, p->r, p->g, p->b, SDL_ALPHA_OPAQUE);
-            SDL_RenderDrawLine(ren, p->x, p->y, p->x2, p->y2);
-        }
+    for(int n = 0; n <= lines.max(); n++) {
+	const Primitive *p = (const Primitive*)(lines.contents()[n]);
+        if(p) p->draw(ren);
     }
     lines.unlock();
 

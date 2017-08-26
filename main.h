@@ -1,3 +1,3 @@
 #pragma once
 
-extern Array<Primitive> lines;
+extern Array lines;
