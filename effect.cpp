@@ -9,6 +9,7 @@ int Effect::tick(double time) {
 Tween::Tween() {
     repeat = 0;
     reverse = 0;
+    active = 0;
     passed = 0.0;
     name = 0;
 }
@@ -18,7 +19,9 @@ Tween::~Tween() {
 }
 
 int Tween::tick(double time) {
-    Primitive *prim = (Primitive*) lines.edit(idx);
+    if(!active) return 0;
+
+    Primitive *prim = (Primitive*) primitives.edit(idx);
     if(!prim) return 1;
 
     passed += time;

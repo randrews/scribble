@@ -3,6 +3,7 @@
 
 class Effect {
  public:
+    int active;
     virtual int tick(double time);
 };
 

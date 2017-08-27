@@ -11,10 +11,9 @@ int handleEvent(SDL_Event*, SDL_Renderer*);
 Uint32 timerCallback(Uint32 interval, void *param);
 void redraw(SDL_Renderer*);
 
-int d = 1, y = 0;
 SDL_Texture *tex;
 
-Array lines, effects;
+Array primitives, effects;
 
 int main(int argc, char **argv) {
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER); handleError();
@@ -65,16 +64,12 @@ void redraw(SDL_Renderer *ren) {
     SDL_RenderClear(ren);
     SDL_RenderCopy(ren, tex, 0, 0);
 
-    SDL_SetRenderDrawColor(ren, 255, 255, 0, SDL_ALPHA_OPAQUE);
-    SDL_RenderDrawLine(ren, 0, y, 639, 479-y);
-    SDL_RenderDrawLine(ren, 0, 479-y, 639, y);
-
-    lines.lock();
-    for(int n = 0; n <= lines.max(); n++) {
-	Primitive *p = (Primitive*)(lines.contents()[n]);
+    primitives.lock();
+    for(int n = 0; n <= primitives.max(); n++) {
+	Primitive *p = (Primitive*)(primitives.contents()[n]);
         if(p) p->draw(ren);
     }
-    lines.unlock();
+    primitives.unlock();
 
     SDL_RenderPresent(ren);
 }
@@ -88,10 +83,6 @@ void handleError() {
 }
 
 Uint32 timerCallback(Uint32 interval, void *param) {
-    if(y < 1 && d < 0) d = 1;
-    if(y > 478 && d > 0) d = -1;
-    y += 10*d;
-
     effects.lock();
     for(int n = 0; n <= effects.max(); n++) {
 	Effect *eff = (Effect*)(effects.contents()[n]);

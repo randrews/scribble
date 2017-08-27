@@ -1,4 +1,4 @@
 #pragma once
 
-extern Array lines;
+extern Array primitives;
 extern Array effects;
