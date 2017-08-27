@@ -16,5 +16,15 @@ class Line : public Primitive {
     virtual void change(const char *name, int new_value);
 };
 
+class Rect : public Primitive {
+ public:
+    SDL_Rect rect;
+    int r, g, b;
+    int fill;
+
+    virtual void draw(SDL_Renderer*) const;
+    virtual void change(const char *name, int new_value);
+};
+
 class Sprite : public Primitive {
 };

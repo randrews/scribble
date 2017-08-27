@@ -7,6 +7,7 @@
 #include "effect.h"
 
 SCM add_line(SCM x1, SCM y1, SCM x2, SCM y2, SCM rs, SCM gs, SCM bs);
+SCM add_rect(SCM x, SCM y, SCM w, SCM h, SCM fill, SCM rs, SCM gs, SCM bs);
 SCM del_prim(SCM idx);
 SCM edit(SCM idx, SCM name, SCM new_value);
 SCM tween(SCM idx, SCM name, SCM from, SCM to, SCM duration, SCM repeat, SCM active);
@@ -25,6 +26,7 @@ void scripting_init(int argc, char **argv) {
 
 void* register_functions(void *_data) {
     scm_c_define_gsubr("line", 4, 3, 0, (scm_t_subr) &add_line);
+    scm_c_define_gsubr("rect", 4, 4, 0, (scm_t_subr) &add_rect);
     scm_c_define_gsubr("del", 1, 0, 0, (scm_t_subr) &del_prim);
     scm_c_define_gsubr("edit", 3, 0, 0, (scm_t_subr) &edit);
     scm_c_define_gsubr("tween", 4, 3, 0, (scm_t_subr) &tween);
@@ -38,6 +40,21 @@ int guile_thread(void *_data) {
 }
 
 /**************************************************/
+
+SCM add_rect(SCM x, SCM y, SCM w, SCM h, SCM fill, SCM rs, SCM gs, SCM bs) {
+    Rect *rect = new Rect();
+    rect->rect.x = scm_to_int(x);
+    rect->rect.y = scm_to_int(y);
+    rect->rect.w = scm_to_int(w);
+    rect->rect.h = scm_to_int(h);
+    rect->r = scm_is_integer(rs) ? scm_to_int(rs) : 255;
+    rect->g = scm_is_integer(gs) ? scm_to_int(gs) : 255;
+    rect->b = scm_is_integer(bs) ? scm_to_int(bs) : 255;
+    rect->fill = scm_is_bool(fill) ? scm_is_true(fill) : 0;
+
+    int idx = primitives.add(rect);
+    return scm_from_int(idx);
+}
 
 SCM add_line(SCM x1, SCM y1, SCM x2, SCM y2, SCM rs, SCM gs, SCM bs) {
     Line *line = new Line();
@@ -98,7 +115,10 @@ SCM edit(SCM idx, SCM name_s, SCM new_value) {
     if(p) {
 	char name[64]; memset(name, 0, 64);
 	scm_to_locale_stringbuf(name_s, name, 64);
-	p->change(name, scm_to_int(new_value));
+	int val;
+	if(scm_is_integer(new_value)) val = scm_to_int(new_value);
+	else if(scm_is_bool(new_value)) val = scm_is_true(new_value) ? 1 : 0;
+	p->change(name, val);
     }
     return SCM_UNSPECIFIED;
 }

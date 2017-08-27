@@ -20,3 +20,23 @@ void Line::change(const char *name, int new_value) {
     if(!strcmp(name, "g")) g = new_value;
     if(!strcmp(name, "b")) b = new_value;
 }
+
+void Rect::draw(SDL_Renderer *ren) const {
+    SDL_SetRenderDrawColor(ren, r, g, b, SDL_ALPHA_OPAQUE);
+    if(fill) {
+        SDL_RenderFillRect(ren, &rect);
+    } else {
+        SDL_RenderDrawRect(ren, &rect);
+    }
+}
+
+void Rect::change(const char *name, int new_value) {
+    if(!strcmp(name, "x")) rect.x = new_value;
+    if(!strcmp(name, "y")) rect.y = new_value;
+    if(!strcmp(name, "w")) rect.w = new_value;
+    if(!strcmp(name, "h")) rect.h = new_value;
+    if(!strcmp(name, "r")) r = new_value;
+    if(!strcmp(name, "g")) g = new_value;
+    if(!strcmp(name, "b")) b = new_value;
+    if(!strcmp(name, "fill")) fill = (new_value != 0);
+}
