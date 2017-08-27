@@ -3,6 +3,7 @@
 #include "array.h"
 #include "primitive.h"
 #include "scripting.h"
+#include "effect.h"
 #include "main.h"
 
 void handleError();
@@ -13,7 +14,7 @@ void redraw(SDL_Renderer*);
 int d = 1, y = 0;
 SDL_Texture *tex;
 
-Array lines;
+Array lines, effects;
 
 int main(int argc, char **argv) {
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER); handleError();
@@ -70,7 +71,7 @@ void redraw(SDL_Renderer *ren) {
 
     lines.lock();
     for(int n = 0; n <= lines.max(); n++) {
-	const Primitive *p = (const Primitive*)(lines.contents()[n]);
+	Primitive *p = (Primitive*)(lines.contents()[n]);
         if(p) p->draw(ren);
     }
     lines.unlock();
@@ -90,6 +91,19 @@ Uint32 timerCallback(Uint32 interval, void *param) {
     if(y < 1 && d < 0) d = 1;
     if(y > 478 && d > 0) d = -1;
     y += 10*d;
+
+    effects.lock();
+    for(int n = 0; n <= effects.max(); n++) {
+	Effect *eff = (Effect*)(effects.contents()[n]);
+	if(eff) {
+	    int finished = eff->tick((double)interval / 1000.0);
+	    if(finished) {
+		effects.del(n);
+		delete eff;
+	    }
+	}
+    }
+    effects.unlock();
 
     SDL_Event event;
     event.type = SDL_USEREVENT;

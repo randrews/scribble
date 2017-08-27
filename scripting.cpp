@@ -4,10 +4,12 @@
 #include "array.h"
 #include "primitive.h"
 #include "main.h"
+#include "effect.h"
 
 SCM add_line(SCM x1, SCM y1, SCM x2, SCM y2, SCM rs, SCM gs, SCM bs);
-SCM del_line(SCM idx);
+SCM del_prim(SCM idx);
 SCM edit(SCM idx, SCM name, SCM new_value);
+SCM tween(SCM idx, SCM name, SCM from, SCM to, SCM duration, SCM repeat);
 
 void* register_functions(void*);
 int guile_thread(void*);
@@ -21,9 +23,10 @@ void scripting_init(int argc, char **argv) {
 }
 
 void* register_functions(void *_data) {
-    scm_c_define_gsubr("add-line", 4, 3, 0, (scm_t_subr) &add_line);
-    scm_c_define_gsubr("del-line", 1, 0, 0, (scm_t_subr) &del_line);
+    scm_c_define_gsubr("line", 4, 3, 0, (scm_t_subr) &add_line);
+    scm_c_define_gsubr("del", 1, 0, 0, (scm_t_subr) &del_prim);
     scm_c_define_gsubr("edit", 3, 0, 0, (scm_t_subr) &edit);
+    scm_c_define_gsubr("tween", 4, 2, 0, (scm_t_subr) &tween);
 }
 
 int guile_thread(void *_data) {
@@ -48,8 +51,25 @@ SCM add_line(SCM x1, SCM y1, SCM x2, SCM y2, SCM rs, SCM gs, SCM bs) {
     return scm_from_int(idx);
 }
 
-SCM del_line(SCM idx) {
-    lines.del(scm_to_int(idx));
+SCM tween(SCM idx, SCM name_s, SCM from, SCM to, SCM duration, SCM repeat) {
+    Tween *tween = new Tween();
+
+    char *name = (char*) malloc(64); memset(name, 0, 64);
+    scm_to_locale_stringbuf(name_s, name, 64);
+
+    tween->idx = scm_to_int(idx);
+    tween->name = name;
+    tween->from = scm_to_double(from);
+    tween->to = scm_to_double(to);
+    tween->duration = scm_is_real(duration) ? scm_to_double(duration) : 0.5;
+    tween->repeat = scm_is_bool(repeat) ? scm_is_true(repeat) : 0;
+
+    return scm_from_int(effects.add(tween));
+}
+
+SCM del_prim(SCM idx) {
+    Primitive *prim = (Primitive*) lines.del(scm_to_int(idx));
+    delete prim;
     return SCM_UNSPECIFIED;
 }
 

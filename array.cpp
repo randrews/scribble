@@ -57,22 +57,24 @@ void* Array::edit(int n) {
     return 0;
 }
 
-void Array::del(int n) {
+void* Array::del(int n) {
+    void *obj = 0;
     lock();
     if(n >= 0 && n < used && data[n]) {
-        free(data[n]);
+        obj = data[n];
         data[n] = 0;
         deleted++;
     }
     unlock();
+    return obj;
 }
 
 int Array::max() {
     return used - 1;
 }
 
-const void** Array::contents() {
-    return (const void**)data;
+void** Array::contents() {
+    return data;
 }
 
 void Array::lock() {

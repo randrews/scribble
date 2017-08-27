@@ -12,7 +12,6 @@ void Line::draw(SDL_Renderer *ren) const {
 }
 
 void Line::change(const char *name, int new_value) {
-    printf("%s\n", name);
     if(!strcmp(name, "x1")) x1 = new_value;
     if(!strcmp(name, "x2")) x2 = new_value;
     if(!strcmp(name, "y1")) y1 = new_value;

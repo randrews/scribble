@@ -8,9 +8,9 @@ class Array {
 
     int add(void*);
     void* edit(int);
-    void del(int);
+    void* del(int);
     int max();
-    const void** contents();
+    void** contents();
     void lock();
     void unlock();
 
