@@ -17,10 +17,10 @@ void Line::change(const char *name, int new_value) {
     if(!strcmp(name, "p2.x")) p2.x = new_value;
     if(!strcmp(name, "p1.y")) p1.y = new_value;
     if(!strcmp(name, "p2.y")) p2.y = new_value;
-    if(!strcmp(name, "r")) color.r = new_value;
-    if(!strcmp(name, "g")) color.g = new_value;
-    if(!strcmp(name, "b")) color.b = new_value;
-    if(!strcmp(name, "a")) color.a = new_value;
+    if(!strcmp(name, "color.r")) color.r = new_value;
+    if(!strcmp(name, "color.g")) color.g = new_value;
+    if(!strcmp(name, "color.b")) color.b = new_value;
+    if(!strcmp(name, "color.a")) color.a = new_value;
 }
 
 void Rect::draw(SDL_Renderer *ren) const {

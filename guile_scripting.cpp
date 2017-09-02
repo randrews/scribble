@@ -11,17 +11,17 @@ int scm_to_color(SCM list, SDL_Color *color);
 int scm_to_point(SCM list, SDL_Point *point);
 void scm_to_color_default(SCM list, SDL_Color *color);
 
-SCM add_line(SCM p1, SCM p2, SCM color_s);
-SCM add_rect(SCM rect_s, SCM color_s, SCM fill);
+SCM add_line(SCM rest);
+SCM add_rect(SCM rect_s, SCM rest);
 SCM add_texture(SCM filename);
 SCM add_sprite(SCM texture, SCM dest, SCM src);
-SCM del_entity(SCM type, SCM idx);
-SCM edit(SCM idx, SCM name, SCM new_value);
-SCM tween(SCM idx, SCM name, SCM from, SCM to, SCM duration, SCM repeat, SCM active);
+SCM del_entity(SCM rest);
+SCM edit(SCM rest);
+SCM tween(SCM rest);
 SCM start(SCM ids);
 
-static SCM key_source;
-static SCM key_dest;
+static SCM key_active, key_color, key_dest, key_duration, key_fill, key_from,
+    key_id, key_name, key_p1, key_p2, key_repeat, key_source, key_to, key_type, key_value;
 
 void* register_functions(void*);
 int guile_thread(void*);
@@ -35,16 +35,29 @@ void guile_scripting_init(int argc, char **argv) {
 }
 
 void* register_functions(void *_data) {
-    key_source = scm_from_utf8_keyword("source");
+    key_active = scm_from_utf8_keyword("active");
+    key_color = scm_from_utf8_keyword("color");
     key_dest = scm_from_utf8_keyword("dest");
-
-    scm_c_define_gsubr("line", 2, 1, 0, (scm_t_subr) &add_line);
-    scm_c_define_gsubr("rect", 1, 4, 0, (scm_t_subr) &add_rect);
+    key_duration = scm_from_utf8_keyword("duration");
+    key_fill = scm_from_utf8_keyword("fill");
+    key_from = scm_from_utf8_keyword("from");
+    key_id = scm_from_utf8_keyword("id");
+    key_name = scm_from_utf8_keyword("name");
+    key_p1 = scm_from_utf8_keyword("p1");
+    key_p2 = scm_from_utf8_keyword("p2");
+    key_repeat = scm_from_utf8_keyword("repeat");
+    key_source = scm_from_utf8_keyword("source");
+    key_to = scm_from_utf8_keyword("to");
+    key_type = scm_from_utf8_keyword("type");
+    key_value = scm_from_utf8_keyword("value");
+    
+    scm_c_define_gsubr("line", 0, 0, 1, (scm_t_subr) &add_line);
+    scm_c_define_gsubr("rect", 1, 0, 1, (scm_t_subr) &add_rect);
     scm_c_define_gsubr("texture", 1, 0, 0, (scm_t_subr) &add_texture);
     scm_c_define_gsubr("sprite", 2, 1, 0, (scm_t_subr) &add_sprite);
-    scm_c_define_gsubr("del", 2, 0, 0, (scm_t_subr) &del_entity);
-    scm_c_define_gsubr("edit", 3, 0, 0, (scm_t_subr) &edit);
-    scm_c_define_gsubr("tween", 4, 3, 0, (scm_t_subr) &tween);
+    scm_c_define_gsubr("del", 0, 0, 1, (scm_t_subr) &del_entity);
+    scm_c_define_gsubr("edit", 0, 0, 1, (scm_t_subr) &edit);
+    scm_c_define_gsubr("tween", 0, 0, 1, (scm_t_subr) &tween);
     scm_c_define_gsubr("start", 0, 0, 1, (scm_t_subr) &start);
 }
 
@@ -135,7 +148,12 @@ SCM add_texture(SCM filename_s) {
     return scm_from_int(textures.add(bmp));
 }
 
-SCM add_rect(SCM rect_s, SCM color_s, SCM fill) {
+SCM add_rect(SCM rect_s, SCM rest) {
+    SCM color_s, fill;
+    scm_c_bind_keyword_arguments("rect", rest, (scm_t_keyword_arguments_flags) 0,
+                                 key_color, &color_s,
+                                 key_fill, &fill);
+
     Rect *rect = new Rect();
     if(!scm_to_rect(rect_s, &(rect->rect))) {
         scm_error_scm(scm_from_locale_symbol("wrong-type-arg"),
@@ -151,7 +169,13 @@ SCM add_rect(SCM rect_s, SCM color_s, SCM fill) {
     return scm_from_int(idx);
 }
 
-SCM add_line(SCM p1, SCM p2, SCM color_s) {
+SCM add_line(SCM rest) {
+    SCM color_s, p1, p2;
+    scm_c_bind_keyword_arguments("line", rest, (scm_t_keyword_arguments_flags) 0,
+                                 key_p1, &p1,
+                                 key_p2, &p2,
+                                 key_color, &color_s);
+
     Line *line = new Line();
     if(!scm_to_point(p1, &(line->p1)) ||
        !scm_to_point(p2, &(line->p2))) {
@@ -171,7 +195,24 @@ SCM add_sprite(SCM texture, SCM src, SCM dest) {
 
 }
 
-SCM tween(SCM idx, SCM name_s, SCM from, SCM to, SCM duration, SCM repeat, SCM active) {
+SCM tween(SCM rest) {
+    SCM idx=SCM_UNDEFINED,
+        name_s=SCM_UNDEFINED,
+        from=SCM_UNDEFINED,
+        to=SCM_UNDEFINED,
+        duration=SCM_UNDEFINED,
+        repeat=SCM_BOOL_F,
+        active=SCM_BOOL_F;
+
+    scm_c_bind_keyword_arguments("tween", rest, (scm_t_keyword_arguments_flags) 0,
+                                 key_id, &idx,
+                                 key_name, &name_s,
+                                 key_from, &from,
+                                 key_to, &to,
+                                 key_duration, &duration,
+                                 key_repeat, &repeat,
+                                 key_active, &active);
+
     Tween *tween = new Tween();
 
     char *name = (char*) malloc(64); memset(name, 0, 64);
@@ -205,11 +246,21 @@ SCM start(SCM ids) {
     return SCM_UNSPECIFIED;
 }
 
-SCM del_entity(SCM type_s, SCM idx) {
-    char type[64]; memset(type, 0, 64);
-    scm_to_locale_stringbuf(type_s, type, 64);
+SCM del_entity(SCM rest) {
+    SCM type_s=SCM_UNDEFINED, idx;
+    scm_c_bind_keyword_arguments("del", rest, (scm_t_keyword_arguments_flags) 0,
+                                 key_id, &idx,
+                                 key_type, &type_s);
 
-    if(!strcmp(type, "rect") ||
+    char type[64];
+
+    if(!SCM_UNBNDP(type_s)) {
+        memset(type, 0, 64);
+        scm_to_locale_stringbuf(type_s, type, 64);
+    }
+
+    if(SCM_UNBNDP(type_s) ||
+       !strcmp(type, "rect") ||
        !strcmp(type, "line") ||
        !strcmp(type, "sprite") ||
        !strcmp(type, "prim") ||
@@ -226,7 +277,13 @@ SCM del_entity(SCM type_s, SCM idx) {
     return SCM_UNSPECIFIED;
 }
 
-SCM edit(SCM idx, SCM name_s, SCM new_value) {
+SCM edit(SCM rest) {
+    SCM idx, name_s, new_value;
+    scm_c_bind_keyword_arguments("edit", rest, (scm_t_keyword_arguments_flags) 0,
+                                 key_id, &idx,
+                                 key_name, &name_s,
+                                 key_value, &new_value);
+
     Primitive *p = (Primitive*) primitives.edit(scm_to_int(idx));
     if(p) {
         char name[64]; memset(name, 0, 64);
