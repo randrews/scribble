@@ -1,17 +1,13 @@
 #include <SDL2/SDL.h>
 #include <libguile.h>
 #include "guile_scripting.h"
+#include "guile_utils.h"
 #include "array.h"
 #include "primitive.h"
 #include "main.h"
 #include "effect.h"
 
-int scm_to_rect(SCM list, SDL_Rect *rect);
-int scm_to_color(SCM list, SDL_Color *color);
-int scm_to_point(SCM list, SDL_Point *point);
-void scm_to_color_default(SCM list, SDL_Color *color);
-
-SCM add_line(SCM rest);
+SCM add_line(SCM p1, SCM p2, SCM rest);
 SCM add_rect(SCM rect_s, SCM rest);
 SCM add_texture(SCM filename);
 SCM add_sprite(SCM rest);
@@ -19,10 +15,11 @@ SCM del_entity(SCM rest);
 SCM edit(SCM rest);
 SCM tween(SCM rest);
 SCM start(SCM ids);
+SCM resolution(SCM rest);
 
 static SCM key_active, key_color, key_dest, key_duration, key_fill, key_from,
-    key_id, key_name, key_p1, key_p2, key_repeat, key_src, key_texture,
-    key_to, key_type, key_value;
+    key_id, key_logical, key_name, key_p1, key_p2, key_repeat, key_resizable,
+    key_src, key_texture, key_to, key_type, key_value, key_window;
 
 void* register_functions(void*);
 int guile_thread(void*);
@@ -43,17 +40,18 @@ void* register_functions(void *_data) {
     key_fill = scm_from_utf8_keyword("fill");
     key_from = scm_from_utf8_keyword("from");
     key_id = scm_from_utf8_keyword("id");
+    key_logical = scm_from_utf8_keyword("logical");
     key_name = scm_from_utf8_keyword("name");
-    key_p1 = scm_from_utf8_keyword("p1");
-    key_p2 = scm_from_utf8_keyword("p2");
     key_repeat = scm_from_utf8_keyword("repeat");
+    key_resizable = scm_from_utf8_keyword("resizable");
     key_src = scm_from_utf8_keyword("src");
     key_texture = scm_from_utf8_keyword("texture");
     key_to = scm_from_utf8_keyword("to");
     key_type = scm_from_utf8_keyword("type");
     key_value = scm_from_utf8_keyword("value");
-    
-    scm_c_define_gsubr("line", 0, 0, 1, (scm_t_subr) &add_line);
+    key_window = scm_from_utf8_keyword("window");
+
+    scm_c_define_gsubr("line", 2, 0, 1, (scm_t_subr) &add_line);
     scm_c_define_gsubr("rect", 1, 0, 1, (scm_t_subr) &add_rect);
     scm_c_define_gsubr("texture", 1, 0, 0, (scm_t_subr) &add_texture);
     scm_c_define_gsubr("sprite", 0, 0, 1, (scm_t_subr) &add_sprite);
@@ -61,6 +59,7 @@ void* register_functions(void *_data) {
     scm_c_define_gsubr("edit", 0, 0, 1, (scm_t_subr) &edit);
     scm_c_define_gsubr("tween", 0, 0, 1, (scm_t_subr) &tween);
     scm_c_define_gsubr("start", 0, 0, 1, (scm_t_subr) &start);
+    scm_c_define_gsubr("resolution", 0, 0, 1, (scm_t_subr) &resolution);
 }
 
 int guile_thread(void *_data) {
@@ -71,75 +70,42 @@ int guile_thread(void *_data) {
 
 /**************************************************/
 
-int scm_to_rect(SCM list, SDL_Rect *rect) {
-    int vals[4];
+SCM resolution(SCM rest) {
+    SCM window=SCM_UNDEFINED,
+        logical=SCM_UNDEFINED,
+        resizable=SCM_UNDEFINED;
 
-    int n = 0;
-    for(; n < 4; n++) {
-        if(!scm_is_pair(list)) break;
-        SCM car = scm_car(list);
-        list = scm_cdr(list);
-        if(!scm_is_integer(car)) break;
-        vals[n] = scm_to_int(car);
+    scm_c_bind_keyword_arguments("resolution", rest, (scm_t_keyword_arguments_flags) 0,
+                                 key_logical, &logical,
+                                 key_resizable, &resizable,
+                                 key_window, &window);
+
+    SDL_LockMutex(renderer_mutex);
+
+    if(window == SCM_UNDEFINED) {
+        desired_window_size.x = 0;
+    } else {
+        scm_to_point(window, &desired_window_size);
     }
 
-    if(n < 4) {
-        return 0;
+    if(logical == SCM_UNDEFINED) {
+        desired_logical_size.x = 0;
+    } else {
+        scm_to_point(logical, &desired_logical_size);
     }
 
-    rect->x = vals[0];
-    rect->y = vals[1];
-    rect->w = vals[2];
-    rect->h = vals[3];
-    return 1;
+    if(resizable == SCM_UNDEFINED) {
+        desired_resizable = -1;
+    } else {
+        if(scm_is_bool(resizable))
+            desired_resizable = scm_is_true(resizable) ? 1 : 0;
+    }
+
+    should_resize = 1;
+    SDL_UnlockMutex(renderer_mutex);
+
+    return SCM_UNSPECIFIED;
 }
-
-// TODO make this handle color names too?
-int scm_to_color(SCM list, SDL_Color *color) {
-    int vals[4];
-
-    int n = 0;
-    for(; n < 4; n++) {
-        if(!scm_is_pair(list)) break;
-        SCM car = scm_car(list);
-        list = scm_cdr(list);
-        if(!scm_is_integer(car)) break;
-        vals[n] = scm_to_int(car);
-    }
-
-    if(n < 3) {
-        return 0;
-    }
-
-    color->r = vals[0];
-    color->g = vals[1];
-    color->b = vals[2];
-
-    if(n == 4) color->a = vals[3];
-    else color->a = SDL_ALPHA_OPAQUE;
-
-    return 1;
-}
-
-int scm_to_point(SCM list, SDL_Point *point) {
-	if(!scm_is_pair(list) || !scm_is_pair(scm_cdr(list))) return 0;
-	SCM car = scm_car(list);
-    SCM cadr = scm_cadr(list);
-
-    point->x = scm_to_int(car);
-    point->y = scm_to_int(cadr);
-
-    return 1;
-}
-
-void scm_to_color_default(SCM list, SDL_Color *color) {
-    if(!scm_to_color(list, color)) {
-        color->r = color->g = color->b = 255;
-        color->a = SDL_ALPHA_OPAQUE;
-    }
-}
-
-/**************************************************/
 
 SCM add_texture(SCM filename_s) {
     char filename[256]; memset(filename, 0, 256);
@@ -171,8 +137,8 @@ SCM add_rect(SCM rect_s, SCM rest) {
     return scm_from_int(idx);
 }
 
-SCM add_line(SCM rest) {
-    SCM color_s, p1, p2;
+SCM add_line(SCM p1, SCM p2, SCM rest) {
+    SCM color_s;
     scm_c_bind_keyword_arguments("line", rest, (scm_t_keyword_arguments_flags) 0,
                                  key_p1, &p1,
                                  key_p2, &p2,
@@ -194,12 +160,19 @@ SCM add_line(SCM rest) {
 }
 
 SCM add_sprite(SCM rest) {
-    SCM texture, src, dest;
+    SCM texture=SCM_UNDEFINED, src, dest;
 
     scm_c_bind_keyword_arguments("sprite", rest, (scm_t_keyword_arguments_flags) 0,
                                  key_texture, &texture,
                                  key_src, &src,
                                  key_dest, &dest);
+
+    if(texture == SCM_UNDEFINED) {
+        scm_error_scm(scm_from_locale_symbol("wrong-type-arg"),
+                      scm_from_locale_string("add_sprite"),
+                      scm_from_locale_string("texture is required"),
+                      SCM_BOOL_F, SCM_BOOL_F);
+    }
 
     Sprite *sprite = new Sprite();
     if(!scm_to_rect(src, &(sprite->src)) ||

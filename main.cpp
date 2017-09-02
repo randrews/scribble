@@ -10,8 +10,13 @@ void handleError();
 int handleEvent(SDL_Event*, SDL_Renderer*);
 Uint32 timerCallback(Uint32 interval, void *param);
 void redraw(SDL_Renderer*);
+void resize(SDL_Renderer *ren, SDL_Window *win);
 
 Array primitives, effects, textures;
+
+SDL_Point desired_window_size, desired_logical_size;
+int should_resize = 0, desired_resizable;
+SDL_mutex *renderer_mutex;
 
 int main(int argc, char **argv) {
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER); handleError();
@@ -22,6 +27,7 @@ int main(int argc, char **argv) {
                                        SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
 
     SDL_Renderer *ren = SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+    renderer_mutex = SDL_CreateMutex();
 
     guile_scripting_init(argc, argv);
 
@@ -36,10 +42,29 @@ int main(int argc, char **argv) {
         do { codes |= handleEvent(&event, ren); } while(SDL_PollEvent(&event));
         if(codes & 2) redraw(ren);
         if(codes & 1) break;
+        if(should_resize) { resize(ren, win); should_resize = 0; }
     }
 
     SDL_Quit();
     return 0;
+}
+
+void resize(SDL_Renderer *ren, SDL_Window *win) {
+    SDL_LockMutex(renderer_mutex);
+
+    if(desired_window_size.x > 0) {
+        SDL_SetWindowSize(win, desired_window_size.x, desired_window_size.y);
+    }
+
+    if(desired_logical_size.x > 0) {
+        SDL_RenderSetLogicalSize(ren, desired_logical_size.x, desired_logical_size.y);
+    }
+
+    if(desired_resizable >= 0) {
+        SDL_SetWindowResizable(win, (desired_resizable == 0 ? SDL_FALSE : SDL_TRUE));
+    }
+
+    SDL_UnlockMutex(renderer_mutex);
 }
 
 int handleEvent(SDL_Event *event, SDL_Renderer *ren) {
