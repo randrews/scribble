@@ -14,14 +14,15 @@ void scm_to_color_default(SCM list, SDL_Color *color);
 SCM add_line(SCM rest);
 SCM add_rect(SCM rect_s, SCM rest);
 SCM add_texture(SCM filename);
-SCM add_sprite(SCM texture, SCM dest, SCM src);
+SCM add_sprite(SCM rest);
 SCM del_entity(SCM rest);
 SCM edit(SCM rest);
 SCM tween(SCM rest);
 SCM start(SCM ids);
 
 static SCM key_active, key_color, key_dest, key_duration, key_fill, key_from,
-    key_id, key_name, key_p1, key_p2, key_repeat, key_source, key_to, key_type, key_value;
+    key_id, key_name, key_p1, key_p2, key_repeat, key_src, key_texture,
+    key_to, key_type, key_value;
 
 void* register_functions(void*);
 int guile_thread(void*);
@@ -46,7 +47,8 @@ void* register_functions(void *_data) {
     key_p1 = scm_from_utf8_keyword("p1");
     key_p2 = scm_from_utf8_keyword("p2");
     key_repeat = scm_from_utf8_keyword("repeat");
-    key_source = scm_from_utf8_keyword("source");
+    key_src = scm_from_utf8_keyword("src");
+    key_texture = scm_from_utf8_keyword("texture");
     key_to = scm_from_utf8_keyword("to");
     key_type = scm_from_utf8_keyword("type");
     key_value = scm_from_utf8_keyword("value");
@@ -54,7 +56,7 @@ void* register_functions(void *_data) {
     scm_c_define_gsubr("line", 0, 0, 1, (scm_t_subr) &add_line);
     scm_c_define_gsubr("rect", 1, 0, 1, (scm_t_subr) &add_rect);
     scm_c_define_gsubr("texture", 1, 0, 0, (scm_t_subr) &add_texture);
-    scm_c_define_gsubr("sprite", 2, 1, 0, (scm_t_subr) &add_sprite);
+    scm_c_define_gsubr("sprite", 0, 0, 1, (scm_t_subr) &add_sprite);
     scm_c_define_gsubr("del", 0, 0, 1, (scm_t_subr) &del_entity);
     scm_c_define_gsubr("edit", 0, 0, 1, (scm_t_subr) &edit);
     scm_c_define_gsubr("tween", 0, 0, 1, (scm_t_subr) &tween);
@@ -191,8 +193,25 @@ SCM add_line(SCM rest) {
     return scm_from_int(idx);
 }
 
-SCM add_sprite(SCM texture, SCM src, SCM dest) {
+SCM add_sprite(SCM rest) {
+    SCM texture, src, dest;
 
+    scm_c_bind_keyword_arguments("sprite", rest, (scm_t_keyword_arguments_flags) 0,
+                                 key_texture, &texture,
+                                 key_src, &src,
+                                 key_dest, &dest);
+
+    Sprite *sprite = new Sprite();
+    if(!scm_to_rect(src, &(sprite->src)) ||
+       !scm_to_rect(dest, &(sprite->dest))) {
+        scm_error_scm(scm_from_locale_symbol("wrong-type-arg"),
+                      scm_from_locale_string("add_sprite"),
+                      scm_from_locale_string("invalid rect"),
+                      SCM_BOOL_F, SCM_BOOL_F);
+    }
+
+    int idx = primitives.add(sprite);
+    return scm_from_int(idx);
 }
 
 SCM tween(SCM rest) {
