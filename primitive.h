@@ -9,8 +9,8 @@ class Primitive {
 
 class Line : public Primitive {
  public:
-    int x1, y1, x2, y2;
-    int r, g, b;
+    SDL_Point p1, p2;
+    SDL_Color color;
 
     virtual void draw(SDL_Renderer*) const;
     virtual void change(const char *name, int new_value);
@@ -19,7 +19,7 @@ class Line : public Primitive {
 class Rect : public Primitive {
  public:
     SDL_Rect rect;
-    int r, g, b;
+    SDL_Color color;
     int fill;
 
     virtual void draw(SDL_Renderer*) const;
@@ -27,4 +27,11 @@ class Rect : public Primitive {
 };
 
 class Sprite : public Primitive {
+ public:
+    int idx;
+    SDL_Rect src;
+    SDL_Rect dest;
+
+    virtual void draw(SDL_Renderer*) const;
+    virtual void change(const char *name, int new_value);
 };

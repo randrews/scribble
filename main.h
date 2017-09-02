@@ -1,4 +1,5 @@
 #pragma once
 
-extern Array primitives;
-extern Array effects;
+#include "array.h"
+
+extern Array primitives, effects, textures;
