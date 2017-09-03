@@ -16,7 +16,7 @@ Array primitives, effects, textures;
 
 SDL_Point desired_window_size, desired_logical_size;
 int should_resize = 0, desired_resizable;
-SDL_mutex *renderer_mutex;
+SDL_mutex *renderer_mutex, *output_mutex;
 
 int main(int argc, char **argv) {
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER); handleError();
@@ -28,6 +28,7 @@ int main(int argc, char **argv) {
 
     SDL_Renderer *ren = SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
     renderer_mutex = SDL_CreateMutex();
+    output_mutex = SDL_CreateMutex();
 
     guile_scripting_init(argc, argv);
 

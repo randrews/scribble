@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <SDL2/SDL.h>
 #include <libguile.h>
 #include "guile_scripting.h"
@@ -65,7 +66,22 @@ void* register_functions(void *_data) {
 int guile_thread(void *_data) {
     scm_init_guile();
     struct Args *args = (struct Args*)(_data);
-    scm_shell(args->argc, args->argv);
+
+    char *line = 0;
+    size_t sz;
+
+    while(getline(&line, &sz, stdin) != -1) {
+        SCM val = scm_c_eval_string(line);
+        if(scm_is_integer(val)) {
+            SDL_LockMutex(output_mutex);
+            printf("%d\n", scm_to_int(val));
+            SDL_UnlockMutex(output_mutex);
+        }
+        free(line);
+        line = 0;
+    }
+    if(line) free(line);
+    exit(0);
 }
 
 /**************************************************/
@@ -124,10 +140,7 @@ SCM add_rect(SCM rect_s, SCM rest) {
 
     Rect *rect = new Rect();
     if(!scm_to_rect(rect_s, &(rect->rect))) {
-        scm_error_scm(scm_from_locale_symbol("wrong-type-arg"),
-                      scm_from_locale_string("add_rect"),
-                      scm_from_locale_string("invalid rect"),
-                      SCM_BOOL_F, SCM_BOOL_F);
+        scm_misc_error("add_rect", "invalid rect", rect_s);
     }
 
     scm_to_color_default(color_s, &(rect->color));
@@ -145,13 +158,8 @@ SCM add_line(SCM p1, SCM p2, SCM rest) {
                                  key_color, &color_s);
 
     Line *line = new Line();
-    if(!scm_to_point(p1, &(line->p1)) ||
-       !scm_to_point(p2, &(line->p2))) {
-        scm_error_scm(scm_from_locale_symbol("wrong-type-arg"),
-                      scm_from_locale_string("add_line"),
-                      scm_from_locale_string("invalid point"),
-                      SCM_BOOL_F, SCM_BOOL_F);
-    }
+    if(!scm_to_point(p1, &(line->p1))) scm_misc_error("add_line", "invalid point", p1);
+    else if(!scm_to_point(p2, &(line->p2))) scm_misc_error("add_line", "invalid point", p2);
 
     scm_to_color_default(color_s, &(line->color));
 
@@ -168,20 +176,12 @@ SCM add_sprite(SCM rest) {
                                  key_dest, &dest);
 
     if(texture == SCM_UNDEFINED) {
-        scm_error_scm(scm_from_locale_symbol("wrong-type-arg"),
-                      scm_from_locale_string("add_sprite"),
-                      scm_from_locale_string("texture is required"),
-                      SCM_BOOL_F, SCM_BOOL_F);
+        scm_misc_error("add_sprite", "texture is required", SCM_UNDEFINED);
     }
 
     Sprite *sprite = new Sprite();
-    if(!scm_to_rect(src, &(sprite->src)) ||
-       !scm_to_rect(dest, &(sprite->dest))) {
-        scm_error_scm(scm_from_locale_symbol("wrong-type-arg"),
-                      scm_from_locale_string("add_sprite"),
-                      scm_from_locale_string("invalid rect"),
-                      SCM_BOOL_F, SCM_BOOL_F);
-    }
+    if(!scm_to_rect(src, &(sprite->src))) scm_misc_error("add_sprite", "invalid rect", src);
+    else if(!scm_to_rect(dest, &(sprite->dest))) scm_misc_error("add_sprite", "invalid rect", dest);
 
     int idx = primitives.add(sprite);
     return scm_from_int(idx);
